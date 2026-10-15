@@ -9,8 +9,11 @@ const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({
 const sizeLabel = (size) => (size && size !== 'One Size' ? ` · Size ${escapeHtml(size)}` : '');
 
 const CART_KEY = 'thrift-cart';
+const BOOTH_STRIPES = ['#c8452f', '#2e7d6b', '#d08a2a', '#5a5fa8', '#b0477a', '#3f7f3f'];
 const state = {
   products: [],
+  booths: [],
+  booth: '', // selected booth (seller name); '' means every booth
   cart: loadCart(), // array of product snapshots { id, title, price, emoji }
 };
 
@@ -49,6 +52,7 @@ function filterParams() {
   if (q) params.set('q', q);
   if ($('#f-category').value) params.set('category', $('#f-category').value);
   if ($('#f-condition').value) params.set('condition', $('#f-condition').value);
+  if (state.booth) params.set('seller', state.booth);
   if ($('#f-price').value !== $('#f-price').max) params.set('maxPrice', $('#f-price').value);
   params.set('sort', $('#f-sort').value);
   return params;
@@ -63,15 +67,47 @@ async function loadProducts() {
   }
 }
 
+async function loadBooths() {
+  try {
+    state.booths = await api('/api/booths');
+  } catch {
+    state.booths = [];
+  }
+  // A booth that sold out disappears from the market.
+  if (state.booth && !state.booths.some((b) => b.name === state.booth)) state.booth = '';
+  renderBooths();
+}
+
+function renderBooths() {
+  const total = state.booths.reduce((sum, b) => sum + b.available, 0);
+  const chip = (name, label, emoji, count, i) => `
+    <button class="booth" role="listitem" data-booth="${escapeHtml(name)}"
+      aria-pressed="${state.booth === name}" style="--stripe:${BOOTH_STRIPES[i % BOOTH_STRIPES.length]}">
+      <span class="booth-emoji" aria-hidden="true">${escapeHtml(emoji)}</span>
+      <span class="booth-name">${escapeHtml(label)}</span>
+      <span class="booth-count">${count} item${count === 1 ? '' : 's'} out</span>
+    </button>`;
+  $('#booth-row').innerHTML = chip('', 'Whole market', '🧺', total, 0)
+    + state.booths.map((b, i) => chip(b.name, b.name, b.emoji || '🏷️', b.available, i + 1)).join('');
+  $('#booth-names').innerHTML = state.booths.map((b) => `<option value="${escapeHtml(b.name)}">`).join('');
+}
+
+function selectBooth(name) {
+  state.booth = name;
+  renderBooths();
+  loadProducts();
+}
+
 function inCart(id) {
   return state.cart.some((item) => item.id === id);
 }
 
 function renderGrid() {
   const { products } = state;
-  $('#result-count').textContent = `${products.length} item${products.length === 1 ? '' : 's'} available`;
+  const where = state.booth ? `at ${state.booth}` : 'on the tables';
+  $('#result-count').textContent = `${products.length} item${products.length === 1 ? '' : 's'} ${where}`;
   if (!products.length) {
-    $('#grid').innerHTML = '<p class="empty">No items match your filters. Try widening your search.</p>';
+    $('#grid').innerHTML = '<p class="empty">Nothing on this table matches. Try another booth or widen your search.</p>';
     return;
   }
   $('#grid').innerHTML = products.map((p) => `
@@ -80,8 +116,9 @@ function renderGrid() {
       <div class="card-body">
         <div class="card-title">${escapeHtml(p.title)}</div>
         <div class="card-meta">${escapeHtml(p.category)}${sizeLabel(p.size)}</div>
+        <div class="card-booth">🏕️ ${escapeHtml(p.seller)}</div>
         <div class="card-foot">
-          <span class="price">${money(p.price)}</span>
+          <span class="price-tag">${money(p.price)}</span>
           <span class="tag">${escapeHtml(p.condition)}</span>
         </div>
       </div>
@@ -101,19 +138,25 @@ function openProduct(id) {
       <span class="tag">${escapeHtml(p.condition)}</span>
     </div>
     <p>${escapeHtml(p.description || 'No description provided.')}</p>
-    <p class="muted">Sold by ${escapeHtml(p.seller)}</p>
+    <p class="muted">From the booth: <strong>${escapeHtml(p.seller)}</strong>
+      ${state.booth === p.seller ? '' : `· <button class="btn btn-outline btn-small" id="visit-booth">Visit this booth</button>`}</p>
     <div class="detail-actions">
-      <span class="price">${money(p.price)}</span>
+      <span class="price-tag">${money(p.price)}</span>
       <div>
         <button class="btn btn-outline" data-close-dialog>Close</button>
-        <button class="btn" id="add-to-cart" ${added ? 'disabled' : ''}>${added ? 'In cart' : 'Add to cart'}</button>
+        <button class="btn" id="add-to-cart" ${added ? 'disabled' : ''}>${added ? 'In your basket' : 'Add to basket'}</button>
       </div>
     </div>`;
   $('#add-to-cart').addEventListener('click', () => {
     state.cart.push({ id: p.id, title: p.title, price: p.price, emoji: p.emoji });
     saveCart();
     $('#product-dialog').close();
-    toast(`Added “${p.title}” to your cart`);
+    toast(`Added “${p.title}” to your basket`);
+  });
+  $('#visit-booth')?.addEventListener('click', () => {
+    $('#product-dialog').close();
+    selectBooth(p.seller);
+    $('#booths-title').scrollIntoView({ behavior: 'smooth' });
   });
   $('#product-dialog').showModal();
 }
@@ -131,7 +174,7 @@ function renderCart() {
         <div class="info"><div>${escapeHtml(i.title)}</div><div class="muted">${money(i.price)}</div></div>
         <button class="icon-btn" data-remove="${escapeHtml(i.id)}" aria-label="Remove ${escapeHtml(i.title)}">🗑️</button>
       </li>`).join('')
-    : '<li class="muted">Your cart is empty.</li>';
+    : '<li class="muted">Your basket is empty. Go wander the booths!</li>';
   $('#checkout-form').querySelector('button[type=submit]').disabled = !state.cart.length;
 }
 
@@ -156,7 +199,8 @@ async function checkout(e) {
     saveCart();
     form.reset();
     setCartOpen(false);
-    toast(`Order placed! Total ${money(order.total)} — thank you, ${customer.name}.`);
+    toast(`Order placed! Total ${money(order.total)}. Thank you, ${customer.name}.`);
+    loadBooths();
     loadProducts();
   } catch (ex) {
     err.textContent = ex.message;
@@ -164,6 +208,7 @@ async function checkout(e) {
     if (ex.data?.soldIds) {
       state.cart = state.cart.filter((i) => !ex.data.soldIds.includes(i.id));
       saveCart();
+      loadBooths();
       loadProducts();
     }
   }
@@ -180,7 +225,8 @@ async function sell(e) {
     const product = await api('/api/products', { method: 'POST', body: Object.fromEntries(new FormData(form)) });
     form.reset();
     $('#sell-dialog').close();
-    toast(`“${product.title}” is now listed!`);
+    toast(`“${product.title}” is out on the ${product.seller} table!`);
+    loadBooths();
     loadProducts();
   } catch (ex) {
     err.textContent = ex.message;
@@ -219,9 +265,15 @@ async function init() {
     $('#f-sort').value = 'newest';
     $('#f-price').value = $('#f-price').max;
     $('#f-price-label').textContent = 'Any';
+    state.booth = '';
+    renderBooths();
     loadProducts();
   });
 
+  $('#booth-row').addEventListener('click', (e) => {
+    const booth = e.target.closest('.booth');
+    if (booth) selectBooth(booth.dataset.booth);
+  });
   $('#grid').addEventListener('click', (e) => {
     const card = e.target.closest('.card');
     if (card) openProduct(card.dataset.id);
@@ -249,6 +301,7 @@ async function init() {
   $('#sell-form').addEventListener('submit', sell);
 
   renderCart();
+  loadBooths();
   loadProducts();
 }
 

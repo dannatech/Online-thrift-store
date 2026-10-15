@@ -3,28 +3,40 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Second Chance Thrift</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>♻️</text></svg>">
+  <title>Second Chance Thrift Market</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧺</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Nunito:wght@400;600;700&display=swap">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="/">♻️ Second Chance <span>Thrift</span></a>
-    <input id="search" type="search" placeholder="Search jeans, lamps, books…" aria-label="Search items">
+    <a class="brand" href="/">🧺 Second Chance <span>Market</span></a>
+    <input id="search" type="search" placeholder="Search the stalls: jeans, lamps, books…" aria-label="Search items">
     <div class="actions">
-      <button id="sell-btn" class="btn btn-outline">Sell an item</button>
-      <button id="cart-btn" class="btn" aria-label="Open cart">🛒 Cart <span id="cart-count" class="badge">0</span></button>
+      <button id="sell-btn" class="btn btn-outline">Rent a booth</button>
+      <button id="cart-btn" class="btn" aria-label="Open basket">🧺 Basket <span id="cart-count" class="badge">0</span></button>
     </div>
   </header>
+  <div class="awning" aria-hidden="true"></div>
 
   <section class="hero">
-    <h1>Pre-loved finds, one of a kind.</h1>
-    <p>Every item is unique. When it's gone, it's gone — shop sustainably and give great things a second life.</p>
+    <div class="sign">
+      <p class="sign-kicker">Open every Saturday · Rain or shine</p>
+      <h1>The Second Chance Thrift Market</h1>
+      <p>Wander the booths, haggle-free. Every find is one of a kind. Once it's gone, it's gone.</p>
+    </div>
+  </section>
+
+  <section class="booths" aria-labelledby="booths-title">
+    <h2 id="booths-title" class="section-title">Visit a booth</h2>
+    <div id="booth-row" class="booth-row" role="list"></div>
   </section>
 
   <main class="layout">
     <aside class="filters" aria-label="Filters">
-      <h2>Filter</h2>
+      <h2 class="chalk">Browse</h2>
       <label>Category <select id="f-category"><option value="">All</option></select></label>
       <label>Condition <select id="f-condition"><option value="">Any</option></select></label>
       <label>Max price <span id="f-price-label">Any</span>
@@ -32,7 +44,7 @@
       </label>
       <label>Sort by
         <select id="f-sort">
-          <option value="newest">Newest</option>
+          <option value="newest">Freshest on the table</option>
           <option value="price-asc">Price: low to high</option>
           <option value="price-desc">Price: high to low</option>
         </select>
@@ -40,8 +52,8 @@
       <button id="f-reset" class="btn btn-outline btn-small">Reset filters</button>
     </aside>
 
-    <section>
-      <p id="result-count" class="muted"></p>
+    <section class="table">
+      <p id="result-count" class="table-label"></p>
       <div id="grid" class="grid" aria-live="polite"></div>
     </section>
   </main>
@@ -51,11 +63,11 @@
     <div id="product-detail"></div>
   </dialog>
 
-  <!-- Cart drawer -->
+  <!-- Basket drawer -->
   <aside id="cart" class="drawer" aria-hidden="true">
     <div class="drawer-head">
-      <h2>Your cart</h2>
-      <button class="icon-btn" data-close-cart aria-label="Close cart">✕</button>
+      <h2>Your basket</h2>
+      <button class="icon-btn" data-close-cart aria-label="Close basket">✕</button>
     </div>
     <ul id="cart-items" class="cart-items"></ul>
     <div class="drawer-foot">
@@ -65,7 +77,7 @@
         <input name="email" type="email" placeholder="Email" required>
         <textarea name="address" placeholder="Shipping address" rows="2" required></textarea>
         <p id="checkout-error" class="error" role="alert"></p>
-        <button class="btn btn-block" type="submit">Place order</button>
+        <button class="btn btn-block" type="submit">Pay at the booth</button>
       </form>
     </div>
   </aside>
@@ -74,7 +86,10 @@
   <!-- Sell form -->
   <dialog id="sell-dialog" class="dialog">
     <form id="sell-form" class="form" method="dialog">
-      <h2>Sell an item</h2>
+      <h2>Put an item on your table</h2>
+      <p class="muted">Listing under an existing booth name adds it to that booth. A new name opens a new booth.</p>
+      <input name="seller" placeholder="Booth name (e.g. Sam's Sweater Stand)" required maxlength="50" list="booth-names">
+      <datalist id="booth-names"></datalist>
       <input name="title" placeholder="Item title" required minlength="3" maxlength="80">
       <textarea name="description" placeholder="Describe it (brand, flaws, measurements…)" rows="3" maxlength="500"></textarea>
       <div class="row">
@@ -85,18 +100,17 @@
         <input name="size" placeholder="Size (e.g. M, 42)" maxlength="20">
         <input name="price" type="number" min="1" max="10000" step="0.01" placeholder="Price ($)" required>
       </div>
-      <input name="seller" placeholder="Your name" required maxlength="50">
       <p id="sell-error" class="error" role="alert"></p>
       <div class="row">
         <button type="button" class="btn btn-outline" data-close-dialog>Cancel</button>
-        <button type="submit" class="btn">List item</button>
+        <button type="submit" class="btn">Put it out</button>
       </div>
     </form>
   </dialog>
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <footer class="footer">© Second Chance Thrift · Reduce · Reuse · Restyle</footer>
+  <footer class="footer">🧺 Second Chance Thrift Market · Reduce · Reuse · Restyle</footer>
   <script src="app.js"></script>
 </body>
 </html>

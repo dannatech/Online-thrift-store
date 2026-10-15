@@ -70,6 +70,9 @@ function createServer(store) {
       if (pathname === '/api/meta' && req.method === 'GET') {
         return sendJson(res, 200, { categories: CATEGORIES, conditions: CONDITIONS });
       }
+      if (pathname === '/api/booths' && req.method === 'GET') {
+        return sendJson(res, 200, store.listBooths());
+      }
       if (pathname === '/api/products' && req.method === 'GET') {
         const q = Object.fromEntries(url.searchParams);
         return sendJson(res, 200, store.listProducts(q));

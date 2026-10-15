@@ -45,7 +45,7 @@ class Store {
     fs.renameSync(tmp, this.dbFile);
   }
 
-  listProducts({ q, category, size, condition, maxPrice, sort, includeSold } = {}) {
+  listProducts({ q, category, size, condition, seller, maxPrice, sort, includeSold } = {}) {
     let items = this.data.products.slice();
     if (!includeSold) items = items.filter((p) => !p.sold);
     if (q) {
@@ -56,6 +56,7 @@ class Store {
     if (category) items = items.filter((p) => p.category === category);
     if (size) items = items.filter((p) => p.size === size);
     if (condition) items = items.filter((p) => p.condition === condition);
+    if (seller) items = items.filter((p) => p.seller === seller);
     if (maxPrice !== undefined && maxPrice !== '') {
       const max = Number(maxPrice);
       if (!Number.isNaN(max)) items = items.filter((p) => p.price <= max);
@@ -67,6 +68,19 @@ class Store {
       default: items.sort((a, b) => b.createdAt.localeCompare(a.createdAt)); break;
     }
     return items;
+  }
+
+  /** Vendor booths (one per seller) with how many items each still has out. */
+  listBooths() {
+    const booths = new Map();
+    for (const p of this.data.products) {
+      const booth = booths.get(p.seller) || { name: p.seller, available: 0, emoji: p.emoji };
+      if (!p.sold) booth.available += 1;
+      booths.set(p.seller, booth);
+    }
+    return [...booths.values()]
+      .filter((b) => b.available > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   getProduct(id) {

@@ -46,6 +46,17 @@ test('filters by search, category and max price, and sorts by price', async () =
   assert.equal(jeans.length, 1);
 });
 
+test('lists vendor booths and filters products by booth', async () => {
+  const booths = await (await fetch(`${base}/api/booths`)).json();
+  assert.ok(booths.length >= 4);
+  const shoeCrate = booths.find((b) => b.name === 'The Shoe Crate');
+  assert.equal(shoeCrate.available, 2);
+
+  const items = await (await fetch(`${base}/api/products?seller=${encodeURIComponent('The Shoe Crate')}`)).json();
+  assert.equal(items.length, 2);
+  assert.ok(items.every((p) => p.seller === 'The Shoe Crate'));
+});
+
 test('returns 404 for an unknown product', async () => {
   const res = await fetch(`${base}/api/products/nope`);
   assert.equal(res.status, 404);
