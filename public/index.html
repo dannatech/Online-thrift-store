@@ -3,81 +3,121 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Second Chance Thrift Market</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧺</text></svg>">
+  <title>Second Chance Market</title>
+  <meta name="theme-color" content="#f6f5f1">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%229%22 fill=%22%23ff5a36%22/><circle cx=%2216%22 cy=%2216%22 r=%227%22 fill=%22none%22 stroke=%22white%22 stroke-width=%223%22/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Nunito:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="/">🧺 Second Chance <span>Market</span></a>
-    <input id="search" type="search" placeholder="Search the stalls: jeans, lamps, books…" aria-label="Search items">
-    <div class="actions">
-      <button id="sell-btn" class="btn btn-outline">Rent a booth</button>
-      <button id="cart-btn" class="btn" aria-label="Open basket">🧺 Basket <span id="cart-count" class="badge">0</span></button>
+    <div class="topbar-inner">
+      <a class="brand" href="/" aria-label="Second Chance Market home">
+        <span class="logo" aria-hidden="true"></span>
+        <span>Second Chance</span>
+      </a>
+      <label class="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="search" type="search" placeholder="Search every booth" aria-label="Search items">
+      </label>
+      <div class="actions">
+        <button id="sell-btn" class="btn btn-ghost">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <span class="hide-sm">Sell an item</span>
+        </button>
+        <button id="cart-btn" class="btn btn-dark" aria-label="Open basket">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 13H7L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>
+          <span class="hide-sm">Basket</span>
+          <span id="cart-count" class="badge">0</span>
+        </button>
+      </div>
     </div>
   </header>
-  <div class="awning" aria-hidden="true"></div>
 
-  <section class="hero">
-    <div class="sign">
-      <p class="sign-kicker">Open every Saturday · Rain or shine</p>
-      <h1>The Second Chance Thrift Market</h1>
-      <p>Wander the booths, haggle-free. Every find is one of a kind. Once it's gone, it's gone.</p>
-    </div>
-  </section>
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="dot"></span> Open now · New finds daily</p>
+        <h1>A market of <em>one-of-a-kind</em> secondhand finds.</h1>
+        <p class="lede">Independent sellers, each with their own booth. Browse them one at a time or all at once. Every piece is unique, so once it's sold, it's gone.</p>
+        <dl class="stats">
+          <div><dt>Items out</dt><dd id="stat-items">–</dd></div>
+          <div><dt>Booths</dt><dd id="stat-booths">–</dd></div>
+          <div><dt>Secondhand</dt><dd>100%</dd></div>
+        </dl>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="tile t1">🧥</div>
+        <div class="tile t2">📷</div>
+        <div class="tile t3">👢</div>
+        <div class="tile t4">☕</div>
+      </div>
+    </section>
 
-  <section class="booths" aria-labelledby="booths-title">
-    <h2 id="booths-title" class="section-title">Visit a booth</h2>
-    <div id="booth-row" class="booth-row" role="list"></div>
-  </section>
+    <section class="section" aria-labelledby="booths-title">
+      <div class="section-head">
+        <h2 id="booths-title">Booths</h2>
+        <p class="muted">Pick a seller to see just their items</p>
+      </div>
+      <div id="booth-row" class="booth-row" role="list"></div>
+    </section>
 
-  <main class="layout">
-    <aside class="filters" aria-label="Filters">
-      <h2 class="chalk">Browse</h2>
-      <label>Category <select id="f-category"><option value="">All</option></select></label>
-      <label>Condition <select id="f-condition"><option value="">Any</option></select></label>
-      <label>Max price <span id="f-price-label">Any</span>
-        <input id="f-price" type="range" min="5" max="100" step="5" value="100">
-      </label>
-      <label>Sort by
-        <select id="f-sort">
-          <option value="newest">Freshest on the table</option>
-          <option value="price-asc">Price: low to high</option>
-          <option value="price-desc">Price: high to low</option>
-        </select>
-      </label>
-      <button id="f-reset" class="btn btn-outline btn-small">Reset filters</button>
-    </aside>
+    <section class="section" aria-labelledby="shop-title">
+      <div class="section-head">
+        <h2 id="shop-title">Shop</h2>
+        <p id="result-count" class="muted"></p>
+      </div>
 
-    <section class="table">
-      <p id="result-count" class="table-label"></p>
+      <div class="toolbar">
+        <div id="category-chips" class="chips" role="group" aria-label="Category"></div>
+        <div class="controls">
+          <select id="f-condition" class="control" aria-label="Condition"><option value="">Condition</option></select>
+          <select id="f-price" class="control" aria-label="Max price">
+            <option value="">Price</option>
+            <option value="15">Under $15</option>
+            <option value="25">Under $25</option>
+            <option value="50">Under $50</option>
+          </select>
+          <select id="f-sort" class="control" aria-label="Sort by">
+            <option value="newest">Newest</option>
+            <option value="price-asc">Price: low to high</option>
+            <option value="price-desc">Price: high to low</option>
+          </select>
+          <button id="f-reset" class="link-btn" hidden>Clear all</button>
+        </div>
+      </div>
+
       <div id="grid" class="grid" aria-live="polite"></div>
     </section>
   </main>
 
   <!-- Product detail -->
-  <dialog id="product-dialog" class="dialog">
+  <dialog id="product-dialog" class="dialog dialog-wide">
+    <button class="close-btn" data-close-dialog aria-label="Close">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
     <div id="product-detail"></div>
   </dialog>
 
   <!-- Basket drawer -->
-  <aside id="cart" class="drawer" aria-hidden="true">
+  <aside id="cart" class="drawer" aria-hidden="true" aria-labelledby="cart-title">
     <div class="drawer-head">
-      <h2>Your basket</h2>
-      <button class="icon-btn" data-close-cart aria-label="Close basket">✕</button>
+      <h2 id="cart-title">Your basket</h2>
+      <button class="close-btn static" data-close-cart aria-label="Close basket">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
     </div>
     <ul id="cart-items" class="cart-items"></ul>
     <div class="drawer-foot">
-      <p class="total">Total: <strong id="cart-total">$0.00</strong></p>
+      <p class="total"><span>Total</span> <strong id="cart-total">$0.00</strong></p>
       <form id="checkout-form" class="form">
-        <input name="name" placeholder="Full name" required>
-        <input name="email" type="email" placeholder="Email" required>
-        <textarea name="address" placeholder="Shipping address" rows="2" required></textarea>
+        <input name="name" placeholder="Full name" autocomplete="name" required>
+        <input name="email" type="email" placeholder="Email" autocomplete="email" required>
+        <textarea name="address" placeholder="Shipping address" rows="2" autocomplete="street-address" required></textarea>
         <p id="checkout-error" class="error" role="alert"></p>
-        <button class="btn btn-block" type="submit">Pay at the booth</button>
+        <button class="btn btn-primary btn-block" type="submit">Place order</button>
       </form>
     </div>
   </aside>
@@ -85,32 +125,41 @@
 
   <!-- Sell form -->
   <dialog id="sell-dialog" class="dialog">
+    <button class="close-btn" data-close-dialog aria-label="Close">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
     <form id="sell-form" class="form" method="dialog">
-      <h2>Put an item on your table</h2>
-      <p class="muted">Listing under an existing booth name adds it to that booth. A new name opens a new booth.</p>
-      <input name="seller" placeholder="Booth name (e.g. Sam's Sweater Stand)" required maxlength="50" list="booth-names">
+      <h2>Sell an item</h2>
+      <p class="muted">Use your booth name to add to your booth. A new name opens a new booth.</p>
+      <label class="field">Booth name
+        <input name="seller" placeholder="e.g. Sam's Sweater Stand" required maxlength="50" list="booth-names">
+      </label>
       <datalist id="booth-names"></datalist>
-      <input name="title" placeholder="Item title" required minlength="3" maxlength="80">
-      <textarea name="description" placeholder="Describe it (brand, flaws, measurements…)" rows="3" maxlength="500"></textarea>
+      <label class="field">Title
+        <input name="title" placeholder="What are you selling?" required minlength="3" maxlength="80">
+      </label>
+      <label class="field">Description
+        <textarea name="description" placeholder="Brand, flaws, measurements…" rows="3" maxlength="500"></textarea>
+      </label>
       <div class="row">
-        <select name="category" id="sell-category" required></select>
-        <select name="condition" id="sell-condition" required></select>
+        <label class="field">Category <select name="category" id="sell-category" required></select></label>
+        <label class="field">Condition <select name="condition" id="sell-condition" required></select></label>
       </div>
       <div class="row">
-        <input name="size" placeholder="Size (e.g. M, 42)" maxlength="20">
-        <input name="price" type="number" min="1" max="10000" step="0.01" placeholder="Price ($)" required>
+        <label class="field">Size <input name="size" placeholder="M, 42, One Size" maxlength="20"></label>
+        <label class="field">Price ($) <input name="price" type="number" min="1" max="10000" step="0.01" placeholder="25" required></label>
       </div>
       <p id="sell-error" class="error" role="alert"></p>
-      <div class="row">
-        <button type="button" class="btn btn-outline" data-close-dialog>Cancel</button>
-        <button type="submit" class="btn">Put it out</button>
-      </div>
+      <button type="submit" class="btn btn-primary btn-block">List item</button>
     </form>
   </dialog>
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <footer class="footer">🧺 Second Chance Thrift Market · Reduce · Reuse · Restyle</footer>
+  <footer class="footer">
+    <span class="brand small"><span class="logo" aria-hidden="true"></span> Second Chance</span>
+    <span class="muted">Reduce · Reuse · Restyle</span>
+  </footer>
   <script src="app.js"></script>
 </body>
 </html>

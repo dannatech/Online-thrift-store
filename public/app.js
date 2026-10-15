@@ -1,20 +1,25 @@
 'use strict';
 
 const $ = (sel) => document.querySelector(sel);
-const money = (n) => `$${Number(n).toFixed(2)}`;
+const money = (n) => `$${Number(n).toFixed(2).replace(/\.00$/, '')}`;
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[c]));
 
-const sizeLabel = (size) => (size && size !== 'One Size' ? ` · Size ${escapeHtml(size)}` : '');
+// Each category gets one of the soft tile tints defined in styles.css.
+const CATEGORY_TINT = { Clothing: 1, Shoes: 2, Accessories: 3, Books: 4, Home: 5, Electronics: 6, Other: 6 };
+const tint = (category) => `--tint: var(--tint-${CATEGORY_TINT[category] || 6})`;
+const boothTint = (i) => `--tint: var(--tint-${(i % 6) + 1})`;
+const hasSize = (size) => size && size !== 'One Size';
 
 const CART_KEY = 'thrift-cart';
-const BOOTH_STRIPES = ['#c8452f', '#2e7d6b', '#d08a2a', '#5a5fa8', '#b0477a', '#3f7f3f'];
 const state = {
   products: [],
   booths: [],
-  booth: '', // selected booth (seller name); '' means every booth
-  cart: loadCart(), // array of product snapshots { id, title, price, emoji }
+  booth: '',     // selected booth (seller name); '' means every booth
+  category: '',  // selected category chip; '' means all
+  cart: loadCart(), // array of product snapshots { id, title, price, emoji, category }
 };
 
 function loadCart() {
@@ -41,7 +46,7 @@ function toast(msg) {
   el.textContent = msg;
   el.hidden = false;
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => { el.hidden = true; }, 2500);
+  toast.timer = setTimeout(() => { el.hidden = true; }, 2600);
 }
 
 /* ---------- Catalog ---------- */
@@ -50,21 +55,36 @@ function filterParams() {
   const params = new URLSearchParams();
   const q = $('#search').value.trim();
   if (q) params.set('q', q);
-  if ($('#f-category').value) params.set('category', $('#f-category').value);
-  if ($('#f-condition').value) params.set('condition', $('#f-condition').value);
+  if (state.category) params.set('category', state.category);
   if (state.booth) params.set('seller', state.booth);
-  if ($('#f-price').value !== $('#f-price').max) params.set('maxPrice', $('#f-price').value);
+  if ($('#f-condition').value) params.set('condition', $('#f-condition').value);
+  if ($('#f-price').value) params.set('maxPrice', $('#f-price').value);
   params.set('sort', $('#f-sort').value);
   return params;
 }
 
+function filtersActive() {
+  return Boolean($('#search').value.trim() || state.category || state.booth
+    || $('#f-condition').value || $('#f-price').value || $('#f-sort').value !== 'newest');
+}
+
 async function loadProducts() {
+  $('#f-reset').hidden = !filtersActive();
   try {
     state.products = await api(`/api/products?${filterParams()}`);
     renderGrid();
   } catch (err) {
-    $('#grid').innerHTML = `<p class="empty">Couldn't load items: ${escapeHtml(err.message)}</p>`;
+    $('#grid').innerHTML = `<p class="empty"><strong>Couldn't load items</strong>${escapeHtml(err.message)}</p>`;
   }
+}
+
+function renderSkeleton() {
+  $('#grid').innerHTML = Array.from({ length: 8 }, () => `
+    <div class="card skeleton" aria-hidden="true">
+      <div class="thumb"></div>
+      <div class="bar" style="width:70%"></div>
+      <div class="bar" style="width:40%"></div>
+    </div>`).join('');
 }
 
 async function loadBooths() {
@@ -80,16 +100,26 @@ async function loadBooths() {
 
 function renderBooths() {
   const total = state.booths.reduce((sum, b) => sum + b.available, 0);
-  const chip = (name, label, emoji, count, i) => `
-    <button class="booth" role="listitem" data-booth="${escapeHtml(name)}"
-      aria-pressed="${state.booth === name}" style="--stripe:${BOOTH_STRIPES[i % BOOTH_STRIPES.length]}">
-      <span class="booth-emoji" aria-hidden="true">${escapeHtml(emoji)}</span>
-      <span class="booth-name">${escapeHtml(label)}</span>
-      <span class="booth-count">${count} item${count === 1 ? '' : 's'} out</span>
+  $('#stat-items').textContent = total;
+  $('#stat-booths').textContent = state.booths.length;
+
+  const booth = (name, label, emoji, count, i) => `
+    <button class="booth" role="listitem" data-booth="${escapeHtml(name)}" aria-pressed="${state.booth === name}">
+      <span class="booth-avatar" style="${boothTint(i)}" aria-hidden="true">${escapeHtml(emoji)}</span>
+      <span><span class="booth-name">${escapeHtml(label)}</span><span class="booth-count">${plural(count, 'item')}</span></span>
     </button>`;
-  $('#booth-row').innerHTML = chip('', 'Whole market', '🧺', total, 0)
-    + state.booths.map((b, i) => chip(b.name, b.name, b.emoji || '🏷️', b.available, i + 1)).join('');
+  $('#booth-row').innerHTML = booth('', 'All booths', '🧺', total, 0)
+    + state.booths.map((b, i) => booth(b.name, b.name, b.emoji || '🏷️', b.available, i + 1)).join('');
   $('#booth-names').innerHTML = state.booths.map((b) => `<option value="${escapeHtml(b.name)}">`).join('');
+}
+
+function boothIndex(name) {
+  return state.booths.findIndex((b) => b.name === name) + 1;
+}
+
+function renderChips(categories) {
+  $('#category-chips').innerHTML = ['', ...categories].map((c) => `
+    <button class="chip" data-category="${escapeHtml(c)}" aria-pressed="${state.category === c}">${escapeHtml(c || 'All')}</button>`).join('');
 }
 
 function selectBooth(name) {
@@ -102,66 +132,83 @@ function inCart(id) {
   return state.cart.some((item) => item.id === id);
 }
 
+function addToCart(p) {
+  if (inCart(p.id)) return;
+  state.cart.push({ id: p.id, title: p.title, price: p.price, emoji: p.emoji, category: p.category });
+  saveCart();
+  renderGrid();
+  toast(`Added “${p.title}” to your basket`);
+}
+
 function renderGrid() {
   const { products } = state;
-  const where = state.booth ? `at ${state.booth}` : 'on the tables';
-  $('#result-count').textContent = `${products.length} item${products.length === 1 ? '' : 's'} ${where}`;
+  $('#result-count').textContent = `${plural(products.length, 'item')}${state.booth ? ` at ${state.booth}` : ''}`;
   if (!products.length) {
-    $('#grid').innerHTML = '<p class="empty">Nothing on this table matches. Try another booth or widen your search.</p>';
+    $('#grid').innerHTML = '<p class="empty"><strong>Nothing here yet</strong>Try another booth, category or search.</p>';
     return;
   }
-  $('#grid').innerHTML = products.map((p) => `
-    <article class="card" tabindex="0" data-id="${escapeHtml(p.id)}">
-      <div class="thumb" aria-hidden="true">${escapeHtml(p.emoji || '🏷️')}</div>
-      <div class="card-body">
-        <div class="card-title">${escapeHtml(p.title)}</div>
-        <div class="card-meta">${escapeHtml(p.category)}${sizeLabel(p.size)}</div>
-        <div class="card-booth">🏕️ ${escapeHtml(p.seller)}</div>
-        <div class="card-foot">
-          <span class="price-tag">${money(p.price)}</span>
-          <span class="tag">${escapeHtml(p.condition)}</span>
-        </div>
+  $('#grid').innerHTML = products.map((p) => {
+    const added = inCart(p.id);
+    return `
+    <article class="card" tabindex="0" data-id="${escapeHtml(p.id)}" aria-label="${escapeHtml(p.title)}, ${money(p.price)}">
+      <div class="thumb" style="${tint(p.category)}">
+        <span class="emoji" aria-hidden="true">${escapeHtml(p.emoji || '🏷️')}</span>
+        <span class="pill">${escapeHtml(p.condition)}</span>
+        <button class="quick ${added ? 'added' : ''}" data-quick="${escapeHtml(p.id)}" tabindex="-1" ${added ? 'disabled' : ''}>
+          ${added ? 'In your basket ✓' : 'Add to basket'}
+        </button>
       </div>
-    </article>`).join('');
+      <div>
+        <div class="card-row">
+          <span class="card-title">${escapeHtml(p.title)}</span>
+          <span class="card-price">${money(p.price)}</span>
+        </div>
+        <div class="card-meta">${escapeHtml(p.seller)}${hasSize(p.size) ? ` · Size ${escapeHtml(p.size)}` : ''}</div>
+      </div>
+    </article>`;
+  }).join('');
 }
 
 function openProduct(id) {
   const p = state.products.find((x) => x.id === id);
   if (!p) return;
   const added = inCart(p.id);
+  const sameBooth = state.booth === p.seller;
   $('#product-detail').innerHTML = `
-    <div class="detail-thumb" aria-hidden="true">${escapeHtml(p.emoji || '🏷️')}</div>
-    <h2 style="margin-top:1rem">${escapeHtml(p.title)}</h2>
-    <div class="detail-tags">
-      <span class="tag">${escapeHtml(p.category)}</span>
-      <span class="tag">${p.size && p.size !== 'One Size' ? `Size ${escapeHtml(p.size)}` : 'One size'}</span>
-      <span class="tag">${escapeHtml(p.condition)}</span>
-    </div>
-    <p>${escapeHtml(p.description || 'No description provided.')}</p>
-    <p class="muted">From the booth: <strong>${escapeHtml(p.seller)}</strong>
-      ${state.booth === p.seller ? '' : `· <button class="btn btn-outline btn-small" id="visit-booth">Visit this booth</button>`}</p>
-    <div class="detail-actions">
-      <span class="price-tag">${money(p.price)}</span>
-      <div>
-        <button class="btn btn-outline" data-close-dialog>Close</button>
-        <button class="btn" id="add-to-cart" ${added ? 'disabled' : ''}>${added ? 'In your basket' : 'Add to basket'}</button>
+    <div class="detail">
+      <div class="detail-media" style="${tint(p.category)}" aria-hidden="true">${escapeHtml(p.emoji || '🏷️')}</div>
+      <div class="detail-info">
+        <h2>${escapeHtml(p.title)}</h2>
+        <div class="detail-price">${money(p.price)}</div>
+        <p class="muted">${escapeHtml(p.description || 'No description provided.')}</p>
+        <dl class="specs">
+          <div><dt>Condition</dt><dd>${escapeHtml(p.condition)}</dd></div>
+          <div><dt>Size</dt><dd>${hasSize(p.size) ? escapeHtml(p.size) : 'One size'}</dd></div>
+          <div><dt>Category</dt><dd>${escapeHtml(p.category)}</dd></div>
+        </dl>
+        <div class="seller">
+          <span class="booth-avatar" style="${boothTint(boothIndex(p.seller))}" aria-hidden="true">🏪</span>
+          <div><small>Sold at</small><strong>${escapeHtml(p.seller)}</strong></div>
+          ${sameBooth ? '' : '<button class="btn btn-ghost" id="visit-booth">Visit booth</button>'}
+        </div>
+        <button class="btn btn-primary btn-block" id="add-to-cart" ${added ? 'disabled' : ''}>
+          ${added ? 'In your basket ✓' : `Add to basket · ${money(p.price)}`}
+        </button>
       </div>
     </div>`;
   $('#add-to-cart').addEventListener('click', () => {
-    state.cart.push({ id: p.id, title: p.title, price: p.price, emoji: p.emoji });
-    saveCart();
+    addToCart(p);
     $('#product-dialog').close();
-    toast(`Added “${p.title}” to your basket`);
   });
   $('#visit-booth')?.addEventListener('click', () => {
     $('#product-dialog').close();
     selectBooth(p.seller);
-    $('#booths-title').scrollIntoView({ behavior: 'smooth' });
+    $('#booths-title').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
   $('#product-dialog').showModal();
 }
 
-/* ---------- Cart & checkout ---------- */
+/* ---------- Basket & checkout ---------- */
 
 function renderCart() {
   $('#cart-count').textContent = state.cart.length;
@@ -170,11 +217,11 @@ function renderCart() {
   $('#cart-items').innerHTML = state.cart.length
     ? state.cart.map((i) => `
       <li>
-        <span class="emoji" aria-hidden="true">${escapeHtml(i.emoji || '🏷️')}</span>
-        <div class="info"><div>${escapeHtml(i.title)}</div><div class="muted">${money(i.price)}</div></div>
-        <button class="icon-btn" data-remove="${escapeHtml(i.id)}" aria-label="Remove ${escapeHtml(i.title)}">🗑️</button>
+        <span class="mini" style="${tint(i.category)}" aria-hidden="true">${escapeHtml(i.emoji || '🏷️')}</span>
+        <div class="info"><strong>${escapeHtml(i.title)}</strong><span class="muted">${money(i.price)}</span></div>
+        <button class="remove" data-remove="${escapeHtml(i.id)}" aria-label="Remove ${escapeHtml(i.title)}">Remove</button>
       </li>`).join('')
-    : '<li class="muted">Your basket is empty. Go wander the booths!</li>';
+    : '<li class="cart-empty"><span aria-hidden="true">🧺</span>Your basket is empty.</li>';
   $('#checkout-form').querySelector('button[type=submit]').disabled = !state.cart.length;
 }
 
@@ -199,12 +246,12 @@ async function checkout(e) {
     saveCart();
     form.reset();
     setCartOpen(false);
-    toast(`Order placed! Total ${money(order.total)}. Thank you, ${customer.name}.`);
+    toast(`Order placed! ${money(order.total)} total. Thank you, ${customer.name}.`);
     loadBooths();
     loadProducts();
   } catch (ex) {
     err.textContent = ex.message;
-    // Someone else bought an item first: drop it from the cart so the rest can go through.
+    // Someone else bought an item first: drop it from the basket so the rest can go through.
     if (ex.data?.soldIds) {
       state.cart = state.cart.filter((i) => !ex.data.soldIds.includes(i.id));
       saveCart();
@@ -225,7 +272,7 @@ async function sell(e) {
     const product = await api('/api/products', { method: 'POST', body: Object.fromEntries(new FormData(form)) });
     form.reset();
     $('#sell-dialog').close();
-    toast(`“${product.title}” is out on the ${product.seller} table!`);
+    toast(`“${product.title}” is now listed at ${product.seller}`);
     loadBooths();
     loadProducts();
   } catch (ex) {
@@ -245,27 +292,31 @@ function debounce(fn, ms) {
 }
 
 async function init() {
+  renderSkeleton();
+  renderCart();
   const meta = await api('/api/meta');
-  fillSelect($('#f-category'), meta.categories);
+  renderChips(meta.categories);
   fillSelect($('#f-condition'), meta.conditions);
   fillSelect($('#sell-category'), meta.categories);
   fillSelect($('#sell-condition'), meta.conditions);
 
   $('#search').addEventListener('input', debounce(loadProducts, 250));
-  ['#f-category', '#f-condition', '#f-sort'].forEach((s) => $(s).addEventListener('change', loadProducts));
-  $('#f-price').addEventListener('input', () => {
-    const v = $('#f-price').value;
-    $('#f-price-label').textContent = v === $('#f-price').max ? 'Any' : `≤ $${v}`;
+  ['#f-condition', '#f-price', '#f-sort'].forEach((s) => $(s).addEventListener('change', loadProducts));
+  $('#category-chips').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    state.category = chip.dataset.category;
+    renderChips(meta.categories);
+    loadProducts();
   });
-  $('#f-price').addEventListener('change', loadProducts);
   $('#f-reset').addEventListener('click', () => {
     $('#search').value = '';
-    $('#f-category').value = '';
     $('#f-condition').value = '';
+    $('#f-price').value = '';
     $('#f-sort').value = 'newest';
-    $('#f-price').value = $('#f-price').max;
-    $('#f-price-label').textContent = 'Any';
+    state.category = '';
     state.booth = '';
+    renderChips(meta.categories);
     renderBooths();
     loadProducts();
   });
@@ -275,7 +326,13 @@ async function init() {
     if (booth) selectBooth(booth.dataset.booth);
   });
   $('#grid').addEventListener('click', (e) => {
-    const card = e.target.closest('.card');
+    const quick = e.target.closest('[data-quick]');
+    if (quick) {
+      const p = state.products.find((x) => x.id === quick.dataset.quick);
+      if (p) addToCart(p);
+      return;
+    }
+    const card = e.target.closest('.card:not(.skeleton)');
     if (card) openProduct(card.dataset.id);
   });
   $('#grid').addEventListener('keydown', (e) => {
@@ -284,14 +341,23 @@ async function init() {
   });
 
   document.addEventListener('click', (e) => {
-    if (e.target.matches('[data-close-dialog]')) e.target.closest('dialog').close();
-    if (e.target.matches('[data-close-cart]')) setCartOpen(false);
+    const close = e.target.closest('[data-close-dialog]');
+    if (close) close.closest('dialog').close();
+    if (e.target.closest('[data-close-cart]')) setCartOpen(false);
     const remove = e.target.closest('[data-remove]');
     if (remove) {
       state.cart = state.cart.filter((i) => i.id !== remove.dataset.remove);
       saveCart();
+      renderGrid();
     }
   });
+  // Clicking the dimmed area outside a dialog closes it.
+  document.querySelectorAll('dialog').forEach((d) => d.addEventListener('click', (e) => {
+    if (e.target !== d) return;
+    const r = d.getBoundingClientRect();
+    const outside = e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+    if (outside) d.close();
+  }));
   $('#cart-btn').addEventListener('click', () => setCartOpen(true));
   $('#backdrop').addEventListener('click', () => setCartOpen(false));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setCartOpen(false); });
@@ -300,7 +366,6 @@ async function init() {
   $('#sell-btn').addEventListener('click', () => $('#sell-dialog').showModal());
   $('#sell-form').addEventListener('submit', sell);
 
-  renderCart();
   loadBooths();
   loadProducts();
 }
