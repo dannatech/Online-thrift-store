@@ -1,56 +1,34 @@
 :root {
-  --bg: #f6f5f1;
+  color-scheme: light;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --text: #17161a;
-  --muted: #6b6a70;
-  --line: #e7e5df;
-  --primary: #ff5a36;
+  --soft: #f5f5f5;          /* product tiles, avatars, spec boxes */
+  --text: #000000;
+  --muted: #555555;
+  --line: #e6e6e6;
+  --primary: #000000;
   --primary-ink: #ffffff;
-  --contrast: #17161a;      /* dark buttons, active chips */
+  --contrast: #000000;      /* dark buttons, active chips */
   --contrast-ink: #ffffff;
   --danger: #c4321f;
-  --success: #1f9d61;
+  --success: #000000;
 
-  /* Soft tints for item tiles, one per category / booth. */
-  --tint-1: #ffe3d6;
-  --tint-2: #dcecff;
-  --tint-3: #ece3ff;
-  --tint-4: #f6ead2;
-  --tint-5: #dcf3e6;
-  --tint-6: #e4e8ee;
+  /* Item tiles are one neutral grey; the emoji carry the colour. */
+  --tint-1: var(--soft);
+  --tint-2: var(--soft);
+  --tint-3: var(--soft);
+  --tint-4: var(--soft);
+  --tint-5: var(--soft);
+  --tint-6: var(--soft);
 
   --radius-sm: 10px;
   --radius: 18px;
   --radius-lg: 28px;
-  --shadow-sm: 0 1px 2px rgba(20, 18, 15, 0.06);
-  --shadow: 0 10px 30px -12px rgba(20, 18, 15, 0.18);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.22);
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-serif: "Instrument Serif", Georgia, serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #111113;
-    --surface: #1b1b1f;
-    --text: #f3f2ee;
-    --muted: #a09fa6;
-    --line: #2c2c31;
-    --primary: #ff7a5c;
-    --primary-ink: #1a0d08;
-    --contrast: #f3f2ee;
-    --contrast-ink: #111113;
-    --danger: #ff8a7a;
-    --success: #4fd394;
-    --tint-1: #3a2620;
-    --tint-2: #1f2d3d;
-    --tint-3: #2c2440;
-    --tint-4: #3a3222;
-    --tint-5: #1e3329;
-    --tint-6: #262b33;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.7);
-  }
 }
 
 * { box-sizing: border-box; }
@@ -120,7 +98,7 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 .btn-primary { background: var(--primary); color: var(--primary-ink); }
-.btn-primary:hover:not(:disabled) { filter: brightness(1.05); }
+.btn-primary:hover:not(:disabled) { background: #222; }
 .btn-dark { background: var(--contrast); color: var(--contrast-ink); }
 .btn-ghost { background: var(--surface); color: var(--text); border-color: var(--line); }
 .btn-ghost:hover { border-color: var(--text); }
@@ -128,7 +106,7 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .badge {
   min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
   display: inline-grid; place-items: center;
-  background: var(--primary); color: var(--primary-ink); font-size: 0.75rem; font-weight: 700;
+  background: var(--contrast-ink); color: var(--contrast); font-size: 0.75rem; font-weight: 700;
 }
 .link-btn {
   background: none; border: none; padding: 0 0.25rem; cursor: pointer;
@@ -156,7 +134,7 @@ main { max-width: 1240px; margin: 0 auto; padding: 0 1.5rem; }
   background: var(--surface); border: 1px solid var(--line);
   font-size: 0.82rem; font-weight: 600;
 }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 20%, transparent); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text); box-shadow: 0 0 0 4px var(--line); }
 .hero h1 {
   margin: 1.2rem 0 1rem;
   font-size: clamp(2.4rem, 5.2vw, 4.1rem); font-weight: 800; letter-spacing: -0.035em; line-height: 1.02;
@@ -267,7 +245,7 @@ main { max-width: 1240px; margin: 0 auto; padding: 0 1.5rem; }
   opacity: 0; transform: translateY(8px); transition: opacity 0.2s, transform 0.25s var(--ease);
 }
 .card:hover .quick, .card:focus-visible .quick { opacity: 1; transform: none; }
-.thumb .quick.added { background: var(--success); color: #fff; opacity: 1; transform: none; }
+.thumb .quick.added { background: var(--surface); color: var(--text); border: 1px solid var(--text); opacity: 1; transform: none; }
 .card-row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; }
 .card-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-price { font-weight: 800; }
@@ -302,7 +280,7 @@ main { max-width: 1240px; margin: 0 auto; padding: 0 1.5rem; }
 .detail-info h2 { font-size: 1.8rem; font-weight: 800; padding-right: 2rem; }
 .detail-price { font-size: 1.5rem; font-weight: 800; }
 .specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 0; }
-.specs div { padding: 0.6rem 0.75rem; border-radius: var(--radius-sm); background: var(--bg); }
+.specs div { padding: 0.6rem 0.75rem; border-radius: var(--radius-sm); background: var(--soft); }
 .specs dt { font-size: 0.75rem; color: var(--muted); }
 .specs dd { margin: 0; font-weight: 700; font-size: 0.9rem; }
 .seller {

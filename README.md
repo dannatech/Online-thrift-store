@@ -12,7 +12,7 @@ Built with Node.js and vanilla JavaScript, no dependencies.
 - **Basket** that persists in the browser, with a checkout form (name, email, shipping address)
 - **Unique stock**: each item can only be sold once — if someone buys it first, checkout tells you and removes it from your cart
 - **Sell an item**: anyone can list items under their booth name. A new name opens a new booth
-- Modern, responsive design (phone to desktop) with light and dark mode
+- Clean black-and-white design that works from phone to desktop
 
 ## Getting started
 
