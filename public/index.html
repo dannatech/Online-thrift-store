@@ -117,7 +117,8 @@
         <input name="email" type="email" placeholder="Email" autocomplete="email" required>
         <textarea name="address" placeholder="Shipping address" rows="2" autocomplete="street-address" required></textarea>
         <p id="checkout-error" class="error" role="alert"></p>
-        <button class="btn btn-primary btn-block" type="submit">Place order</button>
+        <button id="checkout-btn" class="btn btn-primary btn-block" type="submit">Place order</button>
+        <p id="pay-note" class="pay-note"></p>
       </form>
     </div>
   </aside>
@@ -135,6 +136,9 @@
         <input name="seller" placeholder="e.g. Sam's Sweater Stand" required maxlength="50" list="booth-names">
       </label>
       <datalist id="booth-names"></datalist>
+      <label class="field">Booth key <span class="muted">(only when adding to a booth you already opened)</span>
+        <input name="boothKey" placeholder="Your booth key" autocomplete="off" spellcheck="false">
+      </label>
       <label class="field">Title
         <input name="title" placeholder="What are you selling?" required minlength="3" maxlength="80">
       </label>
@@ -154,11 +158,47 @@
     </form>
   </dialog>
 
+  <!-- Shown once after a new booth opens -->
+  <dialog id="key-dialog" class="dialog">
+    <button class="close-btn" data-close-dialog aria-label="Close">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+    <div class="form">
+      <h2>Your booth is open</h2>
+      <p class="muted">This is your booth key. You need it to add more items and to get paid. Save it somewhere safe. We can't show it again.</p>
+      <div class="key-box"><code id="key-value"></code><button class="btn btn-ghost" id="copy-key" type="button">Copy</button></div>
+      <button class="btn btn-primary btn-block" id="key-payouts" type="button">Set up payouts with Stripe</button>
+      <button class="btn btn-ghost btn-block" data-close-dialog type="button">Done</button>
+    </div>
+  </dialog>
+
+  <!-- Seller payouts -->
+  <dialog id="payout-dialog" class="dialog">
+    <button class="close-btn" data-close-dialog aria-label="Close">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+    <form id="payout-form" class="form">
+      <h2>Get paid for your sales</h2>
+      <p class="muted" id="payout-intro">Payouts go through Stripe. You'll confirm your identity and add a bank account on Stripe's secure page, then your share of each sale is sent to you automatically.</p>
+      <label class="field">Booth name
+        <input name="booth" required maxlength="50" list="booth-names">
+      </label>
+      <label class="field">Booth key
+        <input name="boothKey" required autocomplete="off" spellcheck="false">
+      </label>
+      <p id="payout-error" class="error" role="alert"></p>
+      <button type="submit" class="btn btn-primary btn-block">Continue to Stripe</button>
+    </form>
+  </dialog>
+
   <div id="toast" class="toast" role="status" hidden></div>
 
   <footer class="footer">
     <span class="brand small"><span class="logo" aria-hidden="true"></span> Second Chance</span>
-    <span class="muted">Reduce · Reuse · Restyle</span>
+    <span class="footer-links">
+      <button class="link-btn" id="payout-link" type="button">Sellers: get paid</button>
+      <span class="muted">Reduce · Reuse · Restyle</span>
+    </span>
   </footer>
   <script src="app.js"></script>
 </body>

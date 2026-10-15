@@ -19,6 +19,7 @@ const state = {
   booths: [],
   booth: '',     // selected booth (seller name); '' means every booth
   category: '',  // selected category chip; '' means all
+  payments: 'demo', // 'stripe' when the server takes real payments
   cart: loadCart(), // array of product snapshots { id, title, price, emoji, category }
 };
 
@@ -222,7 +223,9 @@ function renderCart() {
         <button class="remove" data-remove="${escapeHtml(i.id)}" aria-label="Remove ${escapeHtml(i.title)}">Remove</button>
       </li>`).join('')
     : '<li class="cart-empty"><span aria-hidden="true">🧺</span>Your basket is empty.</li>';
-  $('#checkout-form').querySelector('button[type=submit]').disabled = !state.cart.length;
+  const button = $('#checkout-btn');
+  button.disabled = !state.cart.length;
+  button.textContent = state.payments === 'stripe' ? `Continue to payment · ${money(total)}` : 'Place order';
 }
 
 function setCartOpen(open) {
@@ -237,11 +240,19 @@ async function checkout(e) {
   const err = $('#checkout-error');
   err.textContent = '';
   const customer = Object.fromEntries(new FormData(form));
+  const button = $('#checkout-btn');
+  button.disabled = true;
   try {
     const order = await api('/api/orders', {
       method: 'POST',
       body: { items: state.cart.map((i) => i.id), customer },
     });
+    if (order.checkoutUrl) {
+      // Real payment: Stripe's page takes over and sends the shopper back here.
+      button.textContent = 'Opening secure checkout…';
+      window.location.href = order.checkoutUrl;
+      return;
+    }
     state.cart = [];
     saveCart();
     form.reset();
@@ -258,7 +269,42 @@ async function checkout(e) {
       loadBooths();
       loadProducts();
     }
+  } finally {
+    if (!button.textContent.startsWith('Opening')) renderCart();
   }
+}
+
+/** Back from Stripe: finish up a checkout or a payouts setup. */
+async function handleReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const orderId = params.get('order');
+  const checkout = params.get('checkout');
+  const payouts = params.get('payouts');
+  if (!orderId && !payouts) return;
+  history.replaceState(null, '', window.location.pathname);
+
+  if (payouts === 'done') toast('Payouts are set up. Stripe will send your share of each sale.');
+  if (payouts === 'retry') {
+    $('#payout-error').textContent = 'That setup link expired. Please try again.';
+    $('#payout-dialog').showModal();
+  }
+  if (!orderId) return;
+  try {
+    if (checkout === 'cancelled') {
+      await api(`/api/orders/${encodeURIComponent(orderId)}/cancel`, { method: 'POST', body: {} });
+      toast('Checkout cancelled. Your items are still in your basket.');
+    } else if (checkout === 'success') {
+      const order = await api(`/api/orders/${encodeURIComponent(orderId)}`);
+      const paidIds = new Set(order.items.map((i) => i.id));
+      state.cart = state.cart.filter((i) => !paidIds.has(i.id));
+      saveCart();
+      toast(`Payment received: ${money(order.total)}. Thank you!`);
+    }
+  } catch (err) {
+    toast(err.message);
+  }
+  loadBooths();
+  loadProducts();
 }
 
 /* ---------- Sell ---------- */
@@ -273,10 +319,41 @@ async function sell(e) {
     form.reset();
     $('#sell-dialog').close();
     toast(`“${product.title}” is now listed at ${product.seller}`);
+    if (product.boothKey) showBoothKey(product.seller, product.boothKey);
     loadBooths();
     loadProducts();
   } catch (ex) {
     err.textContent = ex.message;
+  }
+}
+
+function showBoothKey(booth, key) {
+  $('#key-value').textContent = key;
+  $('#copy-key').textContent = 'Copy';
+  $('#key-payouts').hidden = state.payments !== 'stripe';
+  $('#key-payouts').onclick = () => startPayouts(booth, key, $('#key-payouts')).catch((err) => toast(err.message));
+  $('#key-dialog').showModal();
+}
+
+async function startPayouts(booth, boothKey, button) {
+  button.disabled = true;
+  try {
+    const { url } = await api('/api/booths/payouts', { method: 'POST', body: { booth, boothKey } });
+    window.location.href = url;
+  } catch (err) {
+    button.disabled = false;
+    throw err;
+  }
+}
+
+async function payoutSubmit(e) {
+  e.preventDefault();
+  const { booth, boothKey } = Object.fromEntries(new FormData(e.target));
+  $('#payout-error').textContent = '';
+  try {
+    await startPayouts(booth.trim(), boothKey.trim(), e.target.querySelector('button[type=submit]'));
+  } catch (err) {
+    $('#payout-error').textContent = err.message;
   }
 }
 
@@ -293,8 +370,15 @@ function debounce(fn, ms) {
 
 async function init() {
   renderSkeleton();
-  renderCart();
   const meta = await api('/api/meta');
+  state.payments = meta.payments;
+  const note = $('#pay-note');
+  if (meta.payments === 'stripe') {
+    note.textContent = '🔒 Secure payment by Stripe. Cards, Apple Pay and Google Pay.';
+  } else {
+    note.textContent = 'Demo mode: no payment is taken. Orders complete right away.';
+    note.classList.add('demo');
+  }
   renderChips(meta.categories);
   fillSelect($('#f-condition'), meta.conditions);
   fillSelect($('#sell-category'), meta.categories);
@@ -365,9 +449,27 @@ async function init() {
   $('#checkout-form').addEventListener('submit', checkout);
   $('#sell-btn').addEventListener('click', () => $('#sell-dialog').showModal());
   $('#sell-form').addEventListener('submit', sell);
+  $('#payout-form').addEventListener('submit', payoutSubmit);
+  $('#payout-link').addEventListener('click', () => {
+    if (state.payments !== 'stripe') {
+      toast('Payouts turn on once the market connects its Stripe account.');
+      return;
+    }
+    $('#payout-dialog').showModal();
+  });
+  $('#copy-key').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText($('#key-value').textContent);
+      $('#copy-key').textContent = 'Copied';
+    } catch {
+      $('#copy-key').textContent = 'Select & copy';
+    }
+  });
 
+  renderCart();
   loadBooths();
   loadProducts();
+  handleReturn();
 }
 
 init();

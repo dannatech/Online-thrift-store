@@ -78,6 +78,32 @@ test('lists a new item for sale and validates input', async () => {
   assert.equal(newest[0].id, product.id);
 });
 
+test('a new booth gets an owner key that is needed to add more items', async () => {
+  const item = { description: '', category: 'Books', condition: 'Good', price: 8 };
+  const first = await (await post('/api/products', { ...item, title: 'Poetry Book', seller: 'Page Turners' })).json();
+  assert.ok(first.boothKey);
+
+  const noKey = await post('/api/products', { ...item, title: 'Atlas', seller: 'Page Turners' });
+  assert.equal(noKey.status, 403);
+  const withKey = await post('/api/products', { ...item, title: 'Atlas', seller: 'Page Turners', boothKey: first.boothKey });
+  assert.equal(withKey.status, 201);
+  assert.equal((await withKey.json()).boothKey, undefined);
+
+  // Names that clash with built-in object properties are just ordinary booths.
+  const proto = await post('/api/products', { ...item, title: 'Odd Book', seller: 'constructor' });
+  assert.equal(proto.status, 201);
+
+  // Market-run booths can't be claimed.
+  const seedBooth = await post('/api/products', { ...item, title: 'Old Map', seller: 'Bookworm Barn' });
+  assert.equal(seedBooth.status, 403);
+});
+
+test('demo mode has no payouts', async () => {
+  const meta = await (await fetch(`${base}/api/meta`)).json();
+  assert.equal(meta.payments, 'demo');
+  assert.equal((await post('/api/booths/payouts', { booth: 'Bo', boothKey: 'x' })).status, 400);
+});
+
 test('checkout marks items sold and blocks a second purchase', async () => {
   const res = await post('/api/orders', { items: ['p1', 'p2'], customer });
   assert.equal(res.status, 201);
