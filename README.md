@@ -24,9 +24,30 @@ npm start          # http://localhost:3000
 npm test           # run the API tests
 ```
 
-Set `PORT` to change the port and `DB_FILE` to change where data is stored
+Set `PORT` to change the port, `ALLOWED_ORIGINS` to let a separately hosted storefront call the API, and `DB_FILE` to change where data is stored
 (defaults to `data/db.json`, created from `data/seed.json` on first change).
 Delete `data/db.json` to reset the market.
+
+## Hosting on GitHub Pages
+
+GitHub Pages serves static files only, so it hosts the **storefront** (`public/`), not the server.
+On its own the Pages site runs as a **preview store**. Browsing, booths, basket, checkout and selling all work, but no payments are taken.
+Anything a visitor lists or buys is saved in their own browser. A banner on the site says so.
+
+**Turn it on:** in the repository go to **Settings → Pages**, set **Source** to **GitHub Actions**, then push.
+`.github/workflows/pages.yml` runs the tests and publishes the site to
+`https://<user>.github.io/<repo>/` on every push to the default branch (or run it from the Actions tab).
+
+**Real payments with the Pages storefront:**
+1. Host `server.js` somewhere that runs Node, such as Render, Railway or Fly.io.
+   Give it a persistent disk for `data/` (or set `DB_FILE` to a path on one), so orders survive restarts.
+2. Set the server's environment variables (see `.env.example`):
+   - `PUBLIC_URL`: your Pages address, so Stripe sends shoppers back to the storefront.
+   - `ALLOWED_ORIGINS=https://<user>.github.io`: lets the storefront call the server.
+   - The Stripe keys described below.
+3. In `public/config.js`, set `apiBase` to the server's address and push.
+
+Alternatively, skip Pages and serve everything from the Node host: it serves the storefront too.
 
 ## Payments (Stripe)
 
@@ -83,7 +104,8 @@ server.js        HTTP server: JSON API + static files
 src/store.js     Data layer (JSON file storage, validation, booths, orders)
 src/stripe.js    Stripe REST client and webhook signature check (no SDK needed)
 data/seed.json   Starting inventory
-public/          Storefront (HTML, CSS, JS)
+public/          Storefront (HTML, CSS, JS); config.js points it at the server,
+                 demo-api.js runs it in the browser when there is no server
 test/            API and payment tests (node:test, with a fake Stripe)
 ```
 

@@ -89,8 +89,11 @@ const publicOrder = (o) => ({
  * @param {string} payments.webhookSecret Signing secret for /api/stripe/webhook.
  * @param {string} payments.publicUrl Base URL Stripe redirects shoppers and sellers back to.
  * @param {number} payments.feePercent The market's commission on each sale.
+ * @param {object} [options]
+ * @param {string[]} [options.allowedOrigins] Other sites allowed to call the API,
+ *   e.g. the GitHub Pages storefront ('https://you.github.io').
  */
-function createServer(store, payments = null) {
+function createServer(store, payments = null, { allowedOrigins = [] } = {}) {
   const feePercent = payments?.feePercent ?? 0;
 
   async function startCheckout(body) {
@@ -208,6 +211,21 @@ function createServer(store, payments = null) {
   return http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     const { pathname } = url;
+    // Let a storefront hosted elsewhere (GitHub Pages) use the API. Stripe's
+    // webhook is server-to-server and doesn't need this.
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin) && pathname.startsWith('/api/')) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204, {
+          'Access-Control-Allow-Methods': 'GET, POST',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Max-Age': '600',
+        }).end();
+        return;
+      }
+    }
     try {
       if (pathname === '/api/meta' && req.method === 'GET') {
         return sendJson(res, 200, {
@@ -292,7 +310,8 @@ if (require.main === module) {
     };
   }
 
-  createServer(store, payments).listen(port, () => {
+  const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map((o) => o.trim().replace(/\/$/, '')).filter(Boolean);
+  createServer(store, payments, { allowedOrigins }).listen(port, () => {
     console.log(`Second Chance Market running at http://localhost:${port}`);
     console.log(payments
       ? `Payments: Stripe (market fee ${payments.feePercent}%)`

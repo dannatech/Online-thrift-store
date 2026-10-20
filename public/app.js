@@ -31,15 +31,34 @@ function saveCart() {
   renderCart();
 }
 
+// Where the market server lives. '' means the same site that served this page;
+// config.js sets a full URL when the storefront is hosted separately (e.g. GitHub Pages).
+const API_BASE = (window.MARKET_CONFIG?.apiBase || '').replace(/\/$/, '');
+let demoApi = null; // set when no server answers and the in-browser demo takes over
+
 async function api(path, options = {}) {
-  const res = await fetch(path, {
+  const body = options.body ? JSON.stringify(options.body) : undefined;
+  if (demoApi) return demoApi(path, { method: options.method, body });
+  const res = await fetch(API_BASE + path, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    body,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw Object.assign(new Error(data.error || 'Request failed'), { data });
   return data;
+}
+
+/** Find the market server, or fall back to the in-browser demo when there isn't one. */
+async function connect() {
+  try {
+    return await api('/api/meta');
+  } catch (err) {
+    // A configured server that doesn't answer is an outage, not a demo: say so.
+    if (API_BASE) throw new Error(`The market server isn't responding (${err.message}).`);
+    demoApi = await window.createDemoApi();
+    return api('/api/meta');
+  }
 }
 
 function toast(msg) {
@@ -370,8 +389,15 @@ function debounce(fn, ms) {
 
 async function init() {
   renderSkeleton();
-  const meta = await api('/api/meta');
+  let meta;
+  try {
+    meta = await connect();
+  } catch (err) {
+    $('#grid').innerHTML = `<p class="empty"><strong>We'll be right back</strong>${escapeHtml(err.message)}</p>`;
+    return;
+  }
   state.payments = meta.payments;
+  $('#preview-bar').hidden = !meta.preview;
   const note = $('#pay-note');
   if (meta.payments === 'stripe') {
     note.textContent = '🔒 Secure payment by Stripe. Cards, Apple Pay and Google Pay.';

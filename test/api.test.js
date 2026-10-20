@@ -12,7 +12,7 @@ let base;
 before(async () => {
   // dbFile: null keeps the store in memory so tests never touch data/db.json.
   const store = new Store({ dbFile: null, seedFile: path.join(__dirname, '..', 'data', 'seed.json') });
-  server = createServer(store);
+  server = createServer(store, null, { allowedOrigins: ['https://market.github.io'] });
   await new Promise((resolve) => server.listen(0, resolve));
   base = `http://localhost:${server.address().port}`;
 });
@@ -126,6 +126,19 @@ test('checkout validates customer details and cart', async () => {
   assert.equal((await post('/api/orders', { items: [], customer })).status, 400);
   assert.equal((await post('/api/orders', { items: ['p4'], customer: { ...customer, email: 'bad' } })).status, 400);
   assert.equal((await post('/api/orders', { items: ['missing'], customer })).status, 404);
+});
+
+test('allows only configured sites to call the API from the browser', async () => {
+  const preflight = await fetch(`${base}/api/orders`, {
+    method: 'OPTIONS',
+    headers: { Origin: 'https://market.github.io', 'Access-Control-Request-Method': 'POST' },
+  });
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get('access-control-allow-origin'), 'https://market.github.io');
+  assert.match(preflight.headers.get('access-control-allow-headers'), /Content-Type/);
+
+  const other = await fetch(`${base}/api/meta`, { headers: { Origin: 'https://evil.example' } });
+  assert.equal(other.headers.get('access-control-allow-origin'), null);
 });
 
 test('serves the storefront and blocks path traversal', async () => {
