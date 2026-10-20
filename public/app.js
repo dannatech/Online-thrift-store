@@ -52,7 +52,10 @@ async function api(path, options = {}) {
 /** Find the market server, or fall back to the in-browser demo when there isn't one. */
 async function connect() {
   try {
-    return await api('/api/meta');
+    const meta = await api('/api/meta');
+    // Some hosts answer any path with a page of their own; that isn't the market server.
+    if (!Array.isArray(meta.categories)) throw new Error('No market server here.');
+    return meta;
   } catch (err) {
     // A configured server that doesn't answer is an outage, not a demo: say so.
     if (API_BASE) throw new Error(`The market server isn't responding (${err.message}).`);
