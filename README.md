@@ -34,9 +34,10 @@ GitHub Pages serves static files only, so it hosts the **storefront** (`public/`
 On its own the Pages site runs as a **preview store**. Browsing, booths, basket, checkout and selling all work, but no payments are taken.
 Anything a visitor lists or buys is saved in their own browser. A banner on the site says so.
 
-**Turn it on:** in the repository go to **Settings → Pages**, set **Source** to **GitHub Actions**, then push.
-`.github/workflows/pages.yml` runs the tests and publishes the site to
-`https://<user>.github.io/<repo>/` on every push to the default branch (or run it from the Actions tab).
+**Turn it on:** in the repository go to **Settings → Pages → Build and deployment**.
+Set **Source** to **Deploy from a branch**, then pick this branch and the **/ (root)** folder.
+The root `index.html` forwards visitors to `public/`, and `.nojekyll` makes GitHub serve the files as they are.
+The site is `https://<user>.github.io/<repo>/` and updates on every push.
 
 **Real payments with the Pages storefront:**
 1. Host `server.js` somewhere that runs Node, such as Render, Railway or Fly.io.
@@ -104,6 +105,7 @@ server.js        HTTP server: JSON API + static files
 src/store.js     Data layer (JSON file storage, validation, booths, orders)
 src/stripe.js    Stripe REST client and webhook signature check (no SDK needed)
 data/seed.json   Starting inventory
+index.html       Forwards GitHub Pages visitors to public/
 public/          Storefront (HTML, CSS, JS); config.js points it at the server,
                  demo-api.js runs it in the browser when there is no server
 test/            API and payment tests (node:test, with a fake Stripe)

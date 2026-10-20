@@ -14,7 +14,11 @@ window.createDemoApi = async function createDemoApi() {
   let db;
   try { db = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { db = null; }
   if (!db) {
-    const seed = await (await fetch('seed.json')).json();
+    // Next to the page when the workflow assembles the site; in data/ when
+    // GitHub Pages serves the repository as-is.
+    let res = await fetch('seed.json');
+    if (!res.ok) res = await fetch('../data/seed.json');
+    const seed = await res.json();
     const now = new Date().toISOString();
     db = { products: seed.map((p) => ({ ...p, sold: false, createdAt: now })), orders: [], booths: {} };
   }
